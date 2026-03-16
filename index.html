@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BBO Content Drop</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pink: { brand: '#FF1493' },
+            black: { brand: '#080808' },
+            white: { brand: '#FFFFFF' }
+          },
+          fontFamily: {
+            body: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #080808; color: #fff; min-height: 100dvh; overflow-x: hidden; }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-strong {
+      background: rgba(255, 20, 147, 0.06);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 20, 147, 0.15);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .glow { box-shadow: 0 0 40px rgba(255, 20, 147, 0.15), 0 0 80px rgba(255, 20, 147, 0.05); }
+    .glow-text { text-shadow: 0 0 30px rgba(255, 20, 147, 0.5); }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #FF1493, #ff69b4, #FF1493);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .bg-noise {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .bg-gradient {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 0%, rgba(255, 20, 147, 0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 80% 100%, rgba(255, 20, 147, 0.05) 0%, transparent 70%);
+    }
+
+    input, textarea, select {
+      font-family: 'Inter', sans-serif;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: rgba(255, 20, 147, 0.5) !important;
+      box-shadow: 0 0 0 3px rgba(255, 20, 147, 0.1), 0 0 20px rgba(255, 20, 147, 0.1);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #FF1493, #d4127a);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative; overflow: hidden;
+    }
+    .btn-primary::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transform: translateX(-100%); transition: transform 0.5s;
+    }
+    .btn-primary:hover::before { transform: translateX(100%); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(255, 20, 147, 0.4); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-ghost:hover {
+      background: rgba(255, 20, 147, 0.1);
+      border-color: rgba(255, 20, 147, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .upload-zone {
+      border: 2px dashed rgba(255, 20, 147, 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: #FF1493;
+      background: rgba(255, 20, 147, 0.08);
+      box-shadow: 0 0 30px rgba(255, 20, 147, 0.1);
+    }
+    .upload-zone.drag-over { transform: scale(1.01); }
+
+    .preview-thumb { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .preview-thumb:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); }
+    .remove-btn { opacity: 0; transition: all 0.2s; }
+    .preview-thumb:hover .remove-btn { opacity: 1; }
+
+    .fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    .slide-up { animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    .scale-in { animation: scaleIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    @keyframes pulse-pink { 0%, 100% { box-shadow: 0 0 20px rgba(255, 20, 147, 0.2); } 50% { box-shadow: 0 0 40px rgba(255, 20, 147, 0.4); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .pulse-pink { animation: pulse-pink 2s ease-in-out infinite; }
+
+    .progress-bar {
+      background: linear-gradient(90deg, #FF1493, #ff69b4, #FF1493);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #FF1493;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 9999px;
+    }
+
+    .toast { animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+    .submission-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .submission-card:hover { transform: translateY(-2px); border-color: rgba(255, 20, 147, 0.3); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 20, 147, 0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 20, 147, 0.5); }
+
+    .lightbox {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      animation: fadeIn 0.3s ease;
+      cursor: zoom-out;
+    }
+    .lightbox img, .lightbox video {
+      max-width: 92vw; max-height: 88vh;
+      object-fit: contain; border-radius: 8px;
+    }
+
+    .progress-wrap {
+      width: 100%; height: 4px; border-radius: 2px;
+      background: rgba(255, 255, 255, 0.06); overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, #FF1493, #ff69b4);
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-noise"></div>
+  <div class="bg-gradient"></div>
+  <div id="app" class="relative z-10 min-h-screen"></div>
+  <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center pointer-events-none"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://kseujwubekxljppqyqiw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzZXVqd3ViZWt4bGpwcHF5cWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2OTIwOTYsImV4cCI6MjA4OTI2ODA5Nn0.2nBCvRKL22FngXOeHzwinS1sIhBCHUSVwA-APZN5AQM';
+    const BUCKET = 'content-drops';
+    const ADMIN_PIN = '1493';
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let selectedFiles = [];
+    let isSubmitting = false;
+    let uploadProgress = 0;
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bg = type === 'success' ? 'rgba(255, 20, 147, 0.9)' : type === 'error' ? 'rgba(239, 68, 68, 0.9)' : 'rgba(255, 255, 255, 0.1)';
+      toast.className = 'toast pointer-events-auto';
+      toast.style.cssText = `background:${bg};backdrop-filter:blur(12px);padding:12px 24px;border-radius:12px;font-size:0.875rem;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.3);`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      const now = new Date();
+      const diff = now - d;
+      if (diff < 60000) return 'Just now';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function getPublicUrl(path) {
+      return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+    }
+
+    function renderUploadView() {
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <div class="max-w-lg mx-auto px-4 py-8 pb-24">
+          <header class="text-center mb-8 slide-up">
+            <div class="inline-flex items-center gap-2 glass-strong rounded-full px-4 py-1.5 mb-4">
+              <div class="w-2 h-2 rounded-full bg-pink-brand pulse-pink"></div>
+              <span class="text-xs font-semibold tracking-widest uppercase text-pink-brand/80">Content Day Live</span>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight mb-1">
+              <span class="gradient-text">DROP YOUR</span><br />
+              <span class="text-white">CONTENT</span>
+            </h1>
+            <p class="text-white/40 text-sm mt-2">Upload your photos & videos. We post it. You get tagged.</p>
+          </header>
+
+          <form id="upload-form" class="space-y-5 slide-up" style="animation-delay:0.1s">
+            <div>
+              <label class="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Your Name</label>
+              <input id="input-name" type="text" placeholder="What do they call you?" class="w-full glass rounded-xl px-4 py-3.5 text-white placeholder-white/20 text-sm" required />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Instagram Handle</label>
+              <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-pink-brand/60 text-sm font-medium">@</span>
+                <input id="input-handle" type="text" placeholder="yourhandle" class="w-full glass rounded-xl pl-9 pr-4 py-3.5 text-white placeholder-white/20 text-sm" required />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Other Socials <span class="text-white/20">(optional)</span></label>
+              <input id="input-socials" type="text" placeholder="TikTok, Twitter, etc." class="w-full glass rounded-xl px-4 py-3.5 text-white placeholder-white/20 text-sm" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Your Content</label>
+              <div id="drop-zone" class="upload-zone rounded-2xl p-6 text-center" onclick="document.getElementById('file-input').click()">
+                <input id="file-input" type="file" accept="image/*,video/*" multiple capture="environment" class="hidden" />
+                <div>
+                  <div class="w-14 h-14 mx-auto mb-3 rounded-2xl glass-strong flex items-center justify-center">
+                    <svg class="w-7 h-7 text-pink-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                  </div>
+                  <p class="text-white/60 text-sm font-medium mb-1">Tap to upload or take a photo</p>
+                  <p class="text-white/25 text-xs">Photos & videos up to 50MB each</p>
+                </div>
+              </div>
+              <div id="file-previews" class="grid grid-cols-3 gap-3 mt-3"></div>
+              <p id="file-count" class="text-xs text-white/30 mt-2 font-mono hidden"></p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Caption / Note <span class="text-white/20">(optional)</span></label>
+              <textarea id="input-caption" rows="2" placeholder="Anything you want us to include..." class="w-full glass rounded-xl px-4 py-3.5 text-white placeholder-white/20 text-sm resize-none"></textarea>
+            </div>
+
+            <div id="progress-container" class="hidden">
+              <div class="progress-wrap">
+                <div id="progress-bar" class="progress-fill" style="width:0%"></div>
+              </div>
+              <p id="progress-text" class="text-xs text-white/30 mt-1.5 text-center font-mono"></p>
+            </div>
+
+            <button id="submit-btn" type="submit" class="btn-primary w-full py-4 rounded-2xl text-white font-bold text-sm tracking-wide uppercase" disabled>
+              Drop It
+            </button>
+          </form>
+
+          <button onclick="showAdminLogin()" class="fixed bottom-4 right-4 w-10 h-10 glass rounded-full flex items-center justify-center text-white/20 hover:text-pink-brand/60 transition-colors" title="Admin">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
+      `;
+
+      const fileInput = document.getElementById('file-input');
+      const dropZone = document.getElementById('drop-zone');
+      const form = document.getElementById('upload-form');
+
+      fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+      dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+      form.addEventListener('submit', handleSubmit);
+      document.getElementById('input-name').addEventListener('input', validateForm);
+      document.getElementById('input-handle').addEventListener('input', validateForm);
+    }
+
+    function handleFiles(fileList) {
+      const newFiles = Array.from(fileList).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+      if (newFiles.length === 0) { showToast('Only photos and videos accepted', 'error'); return; }
+      const oversized = newFiles.filter(f => f.size > 50 * 1024 * 1024);
+      if (oversized.length > 0) { showToast('Files must be under 50MB', 'error'); return; }
+      selectedFiles = [...selectedFiles, ...newFiles];
+      renderPreviews();
+      validateForm();
+    }
+
+    function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      renderPreviews();
+      validateForm();
+    }
+
+    function renderPreviews() {
+      const container = document.getElementById('file-previews');
+      const countEl = document.getElementById('file-count');
+      if (selectedFiles.length === 0) { container.innerHTML = ''; countEl.classList.add('hidden'); return; }
+      let totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+      countEl.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} · ${formatBytes(totalSize)}`;
+      countEl.classList.remove('hidden');
+      container.innerHTML = selectedFiles.map((file, i) => {
+        const isVideo = file.type.startsWith('video/');
+        const url = URL.createObjectURL(file);
+        return `
+          <div class="preview-thumb relative rounded-xl overflow-hidden aspect-square glass-card scale-in" style="animation-delay:${i * 0.05}s">
+            ${isVideo
+              ? `<video src="${url}" class="w-full h-full object-cover" muted></video>
+                 <div class="absolute bottom-1 left-1"><span class="badge bg-pink-brand/80 text-white">VID</span></div>`
+              : `<img src="${url}" class="w-full h-full object-cover" alt="" />`}
+            <button class="remove-btn absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-red-500 transition-colors" onclick="event.stopPropagation();removeFile(${i})">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>`;
+      }).join('');
+    }
+
+    function validateForm() {
+      const name = document.getElementById('input-name').value.trim();
+      const handle = document.getElementById('input-handle').value.trim();
+      document.getElementById('submit-btn').disabled = !name || !handle || selectedFiles.length === 0 || isSubmitting;
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      if (isSubmitting) return;
+      isSubmitting = true;
+
+      const btn = document.getElementById('submit-btn');
+      const progressContainer = document.getElementById('progress-container');
+      const progressBar = document.getElementById('progress-bar');
+      const progressText = document.getElementById('progress-text');
+
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner mx-auto"></div>';
+      progressContainer.classList.remove('hidden');
+
+      const name = document.getElementById('input-name').value.trim();
+      const handle = document.getElementById('input-handle').value.trim().replace(/^@/, '');
+      const socials = document.getElementById('input-socials').value.trim();
+      const caption = document.getElementById('input-caption').value.trim();
+
+      const fileUrls = [];
+      const totalFiles = selectedFiles.length;
+      const timestamp = Date.now();
+      const folder = `${handle}_${timestamp}`;
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const ext = file.name.split('.').pop() || 'bin';
+        const filePath = `${folder}/${i + 1}.${ext}`;
+
+        progressText.textContent = `Uploading ${i + 1} of ${totalFiles}...`;
+        progressBar.style.width = `${((i) / totalFiles) * 100}%`;
+
+        const { data, error } = await supabase.storage
+          .from(BUCKET)
+          .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+        if (error) {
+          console.error('Upload error:', error);
+          showToast(`Upload failed: ${error.message}`, 'error');
+          btn.innerHTML = 'Drop It';
+          btn.disabled = false;
+          progressContainer.classList.add('hidden');
+          isSubmitting = false;
+          return;
+        }
+
+        fileUrls.push(filePath);
+        progressBar.style.width = `${((i + 1) / totalFiles) * 100}%`;
+      }
+
+      progressText.textContent = 'Saving...';
+
+      const { error: insertError } = await supabase
+        .from('submissions')
+        .insert({
+          name,
+          handle,
+          socials: socials || null,
+          caption: caption || null,
+          file_urls: fileUrls,
+          file_count: fileUrls.length,
+          status: 'pending'
+        });
+
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        showToast('Failed to save submission', 'error');
+        btn.innerHTML = 'Drop It';
+        btn.disabled = false;
+        progressContainer.classList.add('hidden');
+        isSubmitting = false;
+        return;
+      }
+
+      showToast('Content dropped! We got you.');
+      selectedFiles = [];
+      isSubmitting = false;
+      renderSuccessView(name, handle);
+    }
+
+    function renderSuccessView(name, handle) {
+      document.getElementById('app').innerHTML = `
+        <div class="max-w-lg mx-auto px-4 py-16 text-center">
+          <div class="slide-up">
+            <div class="w-20 h-20 mx-auto mb-6 rounded-full glass-strong glow flex items-center justify-center scale-in">
+              <svg class="w-10 h-10 text-pink-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 class="text-2xl font-black mb-2"><span class="gradient-text">YOU'RE LOCKED IN</span></h2>
+            <p class="text-white/40 text-sm mb-1">${escapeHtml(name)}, your content is in the queue.</p>
+            <p class="text-white/30 text-xs mb-8">We'll tag <span class="text-pink-brand/70 font-medium">@${escapeHtml(handle)}</span> when it goes up.</p>
+            <button onclick="selectedFiles=[];renderUploadView()" class="btn-primary px-8 py-3.5 rounded-2xl text-white font-bold text-sm tracking-wide uppercase">Drop More</button>
+          </div>
+        </div>`;
+    }
+
+    function showAdminLogin() {
+      document.getElementById('app').innerHTML = `
+        <div class="max-w-sm mx-auto px-4 py-16 text-center slide-up">
+          <div class="w-16 h-16 mx-auto mb-6 rounded-2xl glass-strong flex items-center justify-center">
+            <svg class="w-8 h-8 text-pink-brand/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold mb-1">Admin Access</h2>
+          <p class="text-white/30 text-xs mb-6">Enter PIN to view submissions</p>
+          <input id="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="----" class="w-32 mx-auto glass rounded-xl px-4 py-3.5 text-center text-white text-lg font-mono tracking-[0.5em] placeholder-white/15" autofocus />
+          <div class="flex gap-3 justify-center mt-6">
+            <button onclick="renderUploadView()" class="btn-ghost px-6 py-2.5 rounded-xl text-white/60 text-sm font-medium">Back</button>
+            <button onclick="checkPin()" class="btn-primary px-6 py-2.5 rounded-xl text-white text-sm font-bold">Enter</button>
+          </div>
+        </div>`;
+      const pinInput = document.getElementById('pin-input');
+      pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPin(); });
+      pinInput.focus();
+    }
+
+    function checkPin() {
+      if (document.getElementById('pin-input').value === ADMIN_PIN) {
+        renderAdminView();
+      } else {
+        showToast('Wrong PIN', 'error');
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-input').focus();
+      }
+    }
+
+    async function renderAdminView() {
+      document.getElementById('app').innerHTML = `
+        <div class="max-w-4xl mx-auto px-4 py-6">
+          <div class="text-center py-16"><div class="spinner mx-auto"></div><p class="text-white/30 text-xs mt-4">Loading submissions...</p></div>
+        </div>`;
+
+      const { data: submissions, error } = await supabase
+        .from('submissions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        showToast('Failed to load submissions', 'error');
+        console.error(error);
+        return;
+      }
+
+      const totalFiles = submissions.reduce((sum, s) => sum + s.file_count, 0);
+      const posted = submissions.filter(s => s.status === 'posted').length;
+
+      document.getElementById('app').innerHTML = `
+        <div class="max-w-4xl mx-auto px-4 py-6 pb-24">
+          <header class="flex items-center justify-between mb-6 slide-up">
+            <div>
+              <h1 class="text-xl font-black tracking-tight"><span class="gradient-text">CONTENT</span> <span class="text-white">QUEUE</span></h1>
+              <p class="text-white/30 text-xs mt-0.5">BBO Content Day Admin</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="renderAdminView()" class="btn-ghost px-3 py-2 rounded-xl text-xs font-medium text-white/60 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" /></svg>
+                Refresh
+              </button>
+              <button onclick="exportCSV()" class="btn-ghost px-3 py-2 rounded-xl text-xs font-medium text-white/60 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                Export
+              </button>
+              <button onclick="selectedFiles=[];renderUploadView()" class="btn-ghost px-3 py-2 rounded-xl text-xs font-medium text-white/60">Exit</button>
+            </div>
+          </header>
+
+          <div class="grid grid-cols-3 gap-3 mb-6 slide-up" style="animation-delay:0.05s">
+            <div class="glass-card rounded-xl p-4 text-center">
+              <p class="font-mono text-2xl font-bold text-white">${submissions.length}</p>
+              <p class="text-[10px] uppercase tracking-wider text-white/30 mt-1">Drops</p>
+            </div>
+            <div class="glass-card rounded-xl p-4 text-center">
+              <p class="font-mono text-2xl font-bold text-pink-brand">${totalFiles}</p>
+              <p class="text-[10px] uppercase tracking-wider text-white/30 mt-1">Files</p>
+            </div>
+            <div class="glass-card rounded-xl p-4 text-center">
+              <p class="font-mono text-2xl font-bold text-green-400">${posted}</p>
+              <p class="text-[10px] uppercase tracking-wider text-white/30 mt-1">Posted</p>
+            </div>
+          </div>
+
+          ${submissions.length === 0
+            ? `<div class="text-center py-16 slide-up"><div class="w-16 h-16 mx-auto mb-4 rounded-2xl glass flex items-center justify-center">
+                <svg class="w-8 h-8 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
+                </div><p class="text-white/20 text-sm">No drops yet. Share the link!</p></div>`
+            : `<div class="space-y-3" id="submissions-list">
+                ${submissions.map((s, idx) => renderSubmissionCard(s, idx)).join('')}
+               </div>`}
+        </div>`;
+    }
+
+    function renderSubmissionCard(s, idx) {
+      const statusColors = { pending: 'bg-yellow-400/20 text-yellow-400', posted: 'bg-green-400/20 text-green-400', skipped: 'bg-white/10 text-white/40' };
+      const statusClass = statusColors[s.status] || statusColors.pending;
+      const fileUrls = s.file_urls || [];
+
+      return `
+        <div class="submission-card glass-card rounded-2xl p-4 slide-up" style="animation-delay:${idx * 0.04}s" data-id="${s.id}">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-gradient-to-br from-pink-brand/30 to-pink-brand/10 flex items-center justify-center text-sm font-bold text-pink-brand">
+                ${s.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p class="font-semibold text-sm text-white">${escapeHtml(s.name)}</p>
+                <p class="text-pink-brand/60 text-xs font-medium">@${escapeHtml(s.handle)}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="badge ${statusClass}">${s.status.toUpperCase()}</span>
+              <span class="text-[10px] text-white/20 font-mono">${formatTime(s.created_at)}</span>
+            </div>
+          </div>
+
+          ${s.socials ? `<p class="text-xs text-white/30 mb-2">Also: ${escapeHtml(s.socials)}</p>` : ''}
+          ${s.caption ? `<p class="text-xs text-white/50 mb-3 italic">"${escapeHtml(s.caption)}"</p>` : ''}
+
+          <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-3">
+            ${fileUrls.map((path, fi) => {
+              const url = getPublicUrl(path);
+              const ext = path.split('.').pop().toLowerCase();
+              const isVideo = ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext);
+              return `
+                <div class="preview-thumb relative rounded-lg overflow-hidden aspect-square cursor-pointer" onclick="openLightbox('${url}', ${isVideo})">
+                  ${isVideo
+                    ? `<video src="${url}" class="w-full h-full object-cover" muted preload="metadata"></video>
+                       <div class="absolute inset-0 flex items-center justify-center bg-black/30">
+                         <svg class="w-5 h-5 text-white/80" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                       </div>`
+                    : `<img src="${url}" class="w-full h-full object-cover" alt="" loading="lazy" />`}
+                </div>`;
+            }).join('')}
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="updateStatus('${s.id}', 'posted')" class="flex-1 btn-ghost px-3 py-2 rounded-xl text-xs font-semibold ${s.status === 'posted' ? 'text-green-400 border-green-400/30' : 'text-white/50'}">Posted</button>
+            <button onclick="updateStatus('${s.id}', 'skipped')" class="flex-1 btn-ghost px-3 py-2 rounded-xl text-xs font-semibold ${s.status === 'skipped' ? 'text-white/60' : 'text-white/30'}">Skip</button>
+            <button onclick="downloadFiles('${s.id}')" class="btn-ghost px-3 py-2 rounded-xl text-xs font-semibold text-white/40 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+              Save
+            </button>
+            <button onclick="confirmDelete('${s.id}', '${(s.file_urls || []).map(u => u.replace(/'/g, "")).join(',')}')" class="btn-ghost px-3 py-2 rounded-xl text-xs font-semibold text-red-400/40 hover:text-red-400">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+            </button>
+          </div>
+        </div>`;
+    }
+
+    async function updateStatus(id, status) {
+      const { data: current } = await supabase.from('submissions').select('status').eq('id', id).single();
+      const newStatus = current.status === status ? 'pending' : status;
+      await supabase.from('submissions').update({ status: newStatus }).eq('id', id);
+      renderAdminView();
+    }
+
+    async function downloadFiles(id) {
+      const { data } = await supabase.from('submissions').select('*').eq('id', id).single();
+      if (!data) return;
+      for (const path of data.file_urls) {
+        const url = getPublicUrl(path);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${data.handle}_${path.split('/').pop()}`;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      showToast(`${data.file_urls.length} file${data.file_urls.length > 1 ? 's' : ''} downloading`);
+    }
+
+    async function confirmDelete(id, filePaths) {
+      if (!confirm('Delete this submission and its files?')) return;
+      const paths = filePaths.split(',').filter(Boolean);
+      if (paths.length > 0) {
+        await supabase.storage.from(BUCKET).remove(paths);
+      }
+      await supabase.from('submissions').delete().eq('id', id);
+      showToast('Deleted');
+      renderAdminView();
+    }
+
+    function openLightbox(url, isVideo) {
+      const overlay = document.createElement('div');
+      overlay.className = 'lightbox';
+      overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+      overlay.innerHTML = isVideo
+        ? `<video src="${url}" controls autoplay style="max-width:92vw;max-height:88vh;border-radius:8px;"></video>`
+        : `<img src="${url}" alt="" />`;
+      document.body.appendChild(overlay);
+      document.addEventListener('keydown', function handler(e) {
+        if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', handler); }
+      });
+    }
+
+    async function exportCSV() {
+      const { data: submissions } = await supabase.from('submissions').select('*').order('created_at', { ascending: false });
+      if (!submissions || submissions.length === 0) { showToast('Nothing to export', 'error'); return; }
+
+      let csv = 'Name,Handle,Other Socials,Caption,Files,Status,Timestamp\n';
+      submissions.forEach(s => {
+        csv += `"${s.name}","@${s.handle}","${s.socials || ''}","${(s.caption || '').replace(/"/g, '""')}",${s.file_count},${s.status},"${new Date(s.created_at).toLocaleString()}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bbo-content-drops-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV exported');
+    }
+
+    renderUploadView();
+  </script>
+</body>
+</html>
